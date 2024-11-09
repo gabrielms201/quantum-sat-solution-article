@@ -1,0 +1,381 @@
+% {{{ PREABLE
+\documentclass[12pt]{article}
+\usepackage{sbc-template}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx,xurl}
+\usepackage[T1]{fontenc} % avoid using two chars when special/accented letters
+\usepackage[brazil]{babel}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{multirow}
+\usepackage{listingsutf8}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{amsmath}
+\usepackage[hidelinks]{hyperref} % hiden links inside the document - obrigatório LaTeX 2022
+\usepackage[braket, qm]{qcircuit}
+\usepackage{caption}
+\usepackage{subcaption}
+%\usepackage{float} <- Não vamos usar este pacote!
+     
+\sloppy
+
+
+\title{Solução Quântica para 3-SAT utilizando Grover:\\uma abordagem prática e amigável}
+
+\author{Ricardo G. M. S. Ruiz\inst{1}, Gabriel A. R. Gomes\inst{1}, Calebe P. Bianchini\inst{1}}
+
+
+\address{Faculdade de Computação e Informática\\
+Universidade Presbiteriana Mackenzie\\
+São Paulo -- SP -- Brasil
+    \email{\{10389321, 10389313\}@mackenzista.com.br,
+  calebe.bianchini@mackenzie.br}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+    This meta-article aims to explore a quantum circuit approach to solving the classic and costly satisfiability problem, using the infamous Grover’s algorithm as the main resolution algorithm. In conjunction with the use of the Qiskit library, the article discusses a practical approach that implements the solution to the problem.
+\end{abstract} 
+\begin{resumo} 
+  Este meta-artigo visa explorar uma abordagem de circuitos quânticos para a resolução do clássico e custoso problema da satisfabilidade, utilizando como principal algoritmo de resolução o famigerado algoritmo de Grover. Em conjunto com a utilização da biblioteca Qiskit, o artigo discorre sobre uma abordagem prática que implementa a solução para o problema.
+\end{resumo}
+
+
+\section{Introdução}
+
+O constante avanço da computação e a crescente demanda por soluções mais eficientes têm conduzido a um cenário de busca contínua por algoritmos que otimizem a resolução de problemas complexos. Tanto na ciência e na produção de hardware quanto no mercado de trabalho, algoritmos clássicos têm sido pilares fundamentais para uma ampla gama de aplicações. No entanto, o advento da computação quântica promete revolucionar a forma como abordamos essas questões, oferecendo um novo paradigma de processamento que pode superar as limitações dos algoritmos clássicos em determinados contextos e superar o limite físico apresentado nos computadores atuais. Enquanto a computação clássica utiliza bits que podem estar em estados 0 ou 1, a computação quântica utiliza qubits que podem existir em estados de sobreposição, representando simultaneamente 0 e 1. Essa capacidade de processamento não determinístico é o que confere à computação quântica sua notável vantagem em certos tipos de cálculos. k-SAT é um desafio importante na ciência da computação que apresenta grandes questões ainda não descobertas, e, portanto, foi escolhido para ser desbravado no artigo em questão.
+
+
+\section{Referencial Teórico}
+%%%%% -> Fundamentos dos assuntos usados na construção do trabalho...
+
+Antes de entrar na implementação proposta, é necessário o entendimento de alguns conceitos da computação clássica, como: Máquina de Turing, problema NP, k-SAT, e demais conceitos da computação quântica, como Algoritmo de Grover e Porta Hadamard.
+
+\textbf{\cite{sipser:07}} A Máquina de Turing é um modelo abstrato de computação que utiliza uma fita infinita dividida em células discretas para manipular símbolos com base em regras definidas. Apesar de sua simplicidade, esse modelo é capaz de executar qualquer algoritmo computacional. A máquina consiste em uma cabeça que percorre a fita, podendo ler e escrever símbolos em cada célula. Cada célula contém um símbolo retirado de um conjunto finito de símbolos. Além disso, a máquina opera em um conjunto finito de estados. No início, a fita contém apenas a sequência de entrada e está vazia em todos os outros lugares. Caso a máquina precise armazenar informações, ela pode escrevê-las na fita. Para ler as informações escritas, a máquina pode mover sua cabeça de volta sobre elas. A computação continua até que a máquina decida produzir uma saída. As saídas "aceitar" e "rejeitar" são determinadas ao entrar em estados especificamente designados para tal. Caso não entre em nenhum estado de aceitação ou rejeição, a máquina continuará indefinidamente, sem parar.
+
+Os problemas NP são aqueles para os quais, dada uma solução, é possível verificar, no pior caso,  utilizando uma Máquina de Turing não determinística, em tempo limitado polinomial \textbf{\cite{sipser:07}}. Acontece que, para determinados problemas, ao executar esse mesmo problema só que em uma máquina de turing determinística, obtemos um tempo limitado não polinomialmente. Por conta disso, os problemas NP são considerados os mais custosos de serem resolvidos computacionalmente, e, especialmente em seu pior caso, e, por conta disto, apresentam uma grande importância na teoria da computação.
+
+Compreendendo o conceito de problema NP, é possível chegar no tema sobre o problema de satisfabilidade, e detalhar sua característica. O problema SAT é um dilema combinatório de grande relevância teórica e prática. Assim como outros problemas combinatórios, a busca por uma solução consome tempo, e esse tempo aumenta de maneira exponencial conforme o tamanho das entradas. Esse problema foi um dos primeiros a ser reconhecido como NP-Completo \textbf{\cite{cook:71}}, possuindo uma complexidade de $O(2^n)$. Seja \(x_1, \ldots, x_n\) variáveis booleanas, um literal pode ser uma variável booleana \(x_1\) ou sua negação \(\neg x_i\). Uma fórmula $k$-FNC (Forma Normal Conjuntiva) é uma conjunção de cláusulas, onde cada cláusula é uma disjunção de exatamente $k$ literais. O problema $k$-SAT é dado um $k$-FNC, decidir se é satisfazível ou não.
+
+\textbf{\cite{grover:96}}. O algoritmo de Grover é um método quântico para buscar um elemento alvo em um banco de dados não ordenado, e é significativamente mais rápido do que qualquer algoritmo clássico para o mesmo problema. O artigo discute uma versão distribuída do algoritmo de Grover, que permite computar uma função Booleana com menos consultas e um número menor de bits de entrada. A ideia central é decompor a função em subfunções, cada uma com menos bits de entrada, e então calcular essas subfunções para encontrar o objetivo com menos consultas.
+
+Entendendo a importância do algoritmo de Grover, é necessário entender que, para implementar o mesmo, normalmente é utilizado operadores de sobreposição quântica , como no caso da porta de Hadamard.\textbf{\cite{silva:18}} O termo Hadamard se refere à geração de bits aleatórios. O Hadamard, neste contexto, está relacionado à Transformada de Hadamard, que é uma operação linear fundamental em computação quântica. Ela é usada para criar superposições de estados quânticos, permitindo que um qubit esteja em uma combinação de estados 0 e 1 simultaneamente. Isso é crucial para algoritmos quânticos, como a geração de números aleatórios, pois permite explorar o paralelismo quântico e realizar cálculos em muitos estados possíveis ao mesmo tempo. A Transformada de Hadamard é representada por uma matriz específica que, quando aplicada a um vetor de estado de um qubit, resulta na superposição desejada de estados.
+
+Com base no entendimento dos conteúdos citados, é possível desenvolver uma discussão sobre as propostas apresentadas no artigo para a solução do problema em questão.
+
+\section{Trabalhos Relacionados}
+%%%%% -> Outros trabalhos, de outros autores, que fazem "a mesma coisa" que nós!
+%% Dica: RESUMO de 4-6 parágrafos de cada artigo relacionado
+%% Dica2: no "último" parágrafo da seção, apresentar uma correlação entre os trabalhos relacionados e o nosso trabalho
+
+%%RELACIONADO 1
+\textbf{\cite{yang:23}} 
+O objetivo principal deste artigo é realizar uma otimização específica na quantidade de qubits \textit{ancilla} existentes numa SAT-oráculo. Este estudo menciona que é comumente usada uma quantidade de qubits \textit{ancilla} de \( 2m - 1 \). O artigo sugere uma solução para diminuir o uso e a utilização de recursos computacionais quânticos, ao propor um oráculo com quantidade ajustável de qubits \textit{ancilla}, recurso especialmente útil para circuitos que resolvem expressões com centenas (ou senão milhares) de cláusulas.
+O estudo em questão começa com a explicação do que são e do motivo pelo qual devemos empregar oráculos em circuitos quânticos, e em juntamente com a explicação do problema SAT, enfatiza-se teoricamente como esses oráculos devem ser utilizados em circuitos que visam resolver o problema da satisfabilidade, reforçando a falha dos algoritmos convencionais quando o assunto é a limitação da quantidade de qubit \textit{ancilla}
+Em seguida, é explicado o algoritmo elaborado pelos autores no intuito de limitar a quantidade de qubits \textit{ancilla}. Como o intuito deste meta artigo é apenas de realizar um circuito quântico que resolve o problema do 3-SAT, sem a necessidade de limitar a quantidade de qubits \textit{ancilla}, não será discutido em detalhes a implementação do algoritmo em questão.
+Após o uso de tal algoritmo, é implementado o oráculo de forma prática, e, através da aplicação do algoritmo de Grover, é citado como teoricamente devemos utilizá-lo para satisfazer a expressão FNC proposta.
+Por fim, o trabalho conclui a complexidade do algoritmo do algoritmo proposto através do tamanho do circuito quântico gerado, e então finaliza deixando algumas questões em aberto a serem desbravadas, como por exemplo o questionamento se há a diferença entre os tipos de qubits \textit{ancilla} ou se então é possível encontrar um algoritmo mais eficiente do que o proposto para a solução do problema da satisfabilidade.
+
+%%RELACIONADO 2
+Assim como em \textbf{\cite{parallelAndDistributed}}, é explicado que, a maneira mais comum de se resolver um problema k-SAT por meio da computação quântica, seria um circuito composto em duas principais componentes: um oráculo, e um difusor, aonde o oráculo seria a nossa entrada, que visa responder ``sim'' ou ``não'' para o nosso problema, e o difusor se encaminha de maximizar a probabilidade de se obter o resultado esperado ao medir o estado dos \textit{qubits}.No estudo em questão, é introduzido a forma mais comum de se criar um oráculo para uma expressão lógica em FNC, que para dado uma fórmula $
+\mathcal {F}: (a) \wedge (\overline{a} \vee b) \wedge (\overline{a} \vee c)
+$, tendo como três variáveis \textit{booleanas} $a=1, b=1, c=1$, existe um oráculo ${U}$ composta por três blocos conectados entre si $C_1, C_2, C_3$ onde $C_1$ visa processar a primeira cláusula $(a)$, $C_2$ processa a segunda cláusula
+$(\overline{a} \vee b)$, e por fim $C_3$ processa a terceira $(\overline{a} \vee c)$, onde são processadas de forma sequencial devido ao fato de todas cláusulas dependerem da variável $a$.
+Cada cláusula por sua vez é composta por portas $M_j$, onde cada um representa literal $l_j$, onde caso $l_j$ seja uma negação, é inferido uma porta $X$, caso o contrário, é inferido então a porta identidade $I$. O qubit obtido então representa o valor da cláusula $C_1$. Após a junção das cláusulas é obtido assim um bloco correspondente forma geral $\omega$ apresentado na figura \ref{fig:oraculo_forma_geral}. Após a construção de todos os circuitos, eles são conectados por uma porta CNOT. (bloco $\wedge$), seguido por uma porta $Z$, e, por fim, é implementado o bloco $\Omega ^{-1}$, que representa a operação inversa de $\Omega$ a fim de restaurar o estado do vetor de entrada.
+\begin{figure}
+    \centering
+    \includegraphics[width=0.7\linewidth]{oraculo_convencional.png}
+    \caption{Forma geral do oráculo \cite{parallelAndDistributed}}
+\label{fig:oraculo_forma_geral}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\scalebox{0.9}{
+\Qcircuit @C=1.0em @R=0.2em @!R {\\
+& & & C_1 & & & C_2\\
+	 	\nghost{a :  } & \lstick{a :  } & \gate{X} & \ctrl{1} & \gate{X} & \qw & \ctrl{3} & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw\\
+	 	\nghost{C_{1_\textit{ancilla}} :  } & \lstick{C_{1_\textit{ancilla}} :  } & \gate{X} & \targ & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw\\
+	 	\nghost{b :  } & \lstick{b :  } & \qw & \qw & \qw & \gate{X} & \ctrl{1} & \gate{X} & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw\\
+	 	\nghost{C_{2_\textit{ancilla}} :  } & \lstick{C_{2_\textit{ancilla}} :  } & \qw & \qw & \qw & \gate{X} & \targ & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw\\
+	 	\nghost{c :  } & \lstick{c :  } & \qw & \qw & \qw & \qw & \qw & \qw & \gate{X} & \ctrl{1} & \gate{X} & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw\\
+	 	\nghost{C_{3_\textit{ancilla}} :  } & \lstick{C_{3_\textit{ancilla}} :  }& \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw\\
+	 	\nghost{F :  } & \lstick{F :  } & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw
+   \gategroup{3}{3}{4}{5}{.4em}{--}
+   \gategroup{3}{6}{6}{8}{.4em}{--}
+ }}
+\caption{Forma geral do oráculo baseado em \cite{parallelAndDistributed}}
+\label{fig:oraculo_forma_geral2}
+\end{figure}
+
+%%RELACIONADO 3 - Acho que aqui é um bom ponto de fazer um link dizendo que é utilizado o grover como um difusor
+Conforme explicado anteriormente, uma forma geral para um circuito que visa resolver o problema do 3-SAT pode ser apresentado através de um oráculo que representa uma expressão FNC, e um difusor que amplifica e realizar a busca exaustiva do resultado da expressão apresentada. Em \textbf{\cite{wang:20}} O artigo cita a vantagem de utilizar Grover por conta de sua complexidade $O \left( \sqrt{N} \right)$ em uma busca não estrutura em uma base de dados. Munido deste conhecimento, o estudo além de montar um oráculo que representa uma expressão em FNC, também apresenta a viabilidade do uso do algoritmo de Grover como difusor. Também é explicado que tal abordagem permite que a complexidade total do circuito seja equivalente a $O(2^{n/2})$. Assim como no trabalho citado anteriormente, o circuito consiste na montagem de um oráculo representante da expressão em FNC, e logo em seguida uma amplificação com um difusor (nesse caso específico, o algoritmo de Grover) a fim de realizar a busca exaustiva pelas soluções satisfatórias do expressão em questão.
+
+%%RELACIONADO 4
+Cabe-se ressaltar que os trabalhos relacionados citados até então introduzem uma solução que consiste em três principais etapas: 1. Criação de um oráculo que representa a expressão FNC para o estado inicial, 2. Sobreposição uniforme de estados das cláusulas representadas por cada qubit 3. Em conjunto com o algoritmo de Grover, é realizado uma busca exaustiva no espaço de busca em conjunto. (veja a figura \ref{fig:diagrama_fluxo_trabalhos_relacionados}). 
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.18\linewidth]{diagrama_fluxo_convencional_trabalhos_relacionados.png}
+        \caption{Diagrama de fluxo da montagem dos circuitos apresentados até então}
+        \label{fig:diagrama_fluxo_trabalhos_relacionados}
+\end{figure}
+A este ponto, vale citar outros trabalhos que visam acabar com essa abordagem custosa e apresentar melhorias, como em \textbf{\cite{varmantchaonala:23}}, onde, através de um algoritmo proposto no trabalho, é realizado uma subdivisão do estado inicial, que, conforme citado anteriormente e nos outros trabalhos já é computado exaustivamente com o algoritmo de Grover. Ao invés disso, e de forma não uniforme, é feito uma aplicação de divisão em conquista que visa realizar uma sobreposição de parte do espaço de busca, contando com apenas os valores que são potencialmente uma solução ótima. Tal proposta não uniforme e baseada em divisão em conquista apresenta uma execução do algoritmo de Grover com complexidade
+$O \left( \sqrt{{N/S}} \right)$, de sendo $N$ o número de potenciais soluções, e $S$ o fator de redução/subdivisão de espaço utilizado pelo algoritmo. Trazendo uma complexidade relativamente superior ao algoritmo de Grover, que em seu estado da arte, e em conjunto com os métodos uniformes citados anteriormente, apresenta uma complexidade de $O \left( \sqrt{N} \right)$. No próprio trabalho em questão, também é citado que existem outras maneiras de solucionar o problema do SAT de forma não determinística, mas sim do uso de meta heuristicas, como através da utilização de QAOA (\textit{Quantum Approximate Optimization Algorithm}). Adentrando nessa descoberta, outros trabalhos que utilizam tal \textit{approach} são dignos de serem citados.
+
+%%RELACIONADO 5
+
+Da mesma forma que brevemente citado no trabalho explicado anteriormente, em \textbf{\cite{mandl:24}}, é apresentado um algoritmo visado ao uso de meta heurísticas para a solução do problema MAX-3SAT (uma generalização do problema SAT), mais em específico o QAOA (\textit{Quantum Approximate Optimization Algorithm}), um algoritmo quântico utilizado para resolver problemas de otimização combinatória, que em sua essência procura encontrar os estados com autovalor mínimo de um dado operador Hamiltoniano $H_C$. Através de uma \textit{ansatz} modelada para o problema a ser resolvido que pode ser resumida em circuito em seu estado inicial seguido por $p$ repetições que concatenam um operador de separação de fase $U(H_C,\gamma_i)$ e um circuito \textit{mixer} $U(H_B, \beta_i)$, como na figura \ref{fig:quantum_ansatz_circuit}. Tal arranjo permite a identificação de um conjunto solução para o problema.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\linewidth]{quantum_ansatz_circuit.jpg}
+    \caption{Forma geral de um circuito quântico \textit{ansatz} para a resolução do problema MAX-3SAT \textbf{\cite{mandl:24}}}
+    \label{fig:quantum_ansatz_circuit}
+\end{figure}
+
+
+%%RELACIONADO 6
+O artigo \textbf{\cite{piro:20}} avalia a aplicação de computação quântica para a solução de instâncias arbitrárias do problema Exactly-1 K-SAT e mostra as melhorias que são proporcionadas por um solucionador quântico. O problema Exactly-1 K-SAT consiste em encontrar uma atribuição satisfatória na qual exatamente um literal é verdadeiro em cada cláusula. Este trabalho realiza uma generalização de outro solucionador quântico que resolve o problema Exactly-1 3-SAT utilizando o algoritmo de Grover, essa generalização é feita em três etapas, a etapa de inicialização onde é aplicado portas Hadamard para cada variável e para a saída, etapa de codificação do problema onde cada cláusula é codificada no circuito usando portas que permitem inverter o qubit correspondente à cláusula se ela tiver exatamente um literal verdadeiro e a etapa de inversão sobre a média onde foi modificado os coeficientes correspondentes à solução correta aplicando a operação unitária \(W\):
+\[
+W = \big( - \overset{n}{\bigotimes} \mathcal{H} \big) D \big( \overset{n}{\bigotimes} \mathcal{H} \big)
+\]
+Sendo \(n\) o número de variáveis e \(D\) uma Matriz Diagonal.
+
+
+
+%%VAMOS RESUMIR CADA UM, DEPOIS DAR UM TAPA EJUNTAR TUDO
+%%ESTRUTURA: [ANCILLA], [ORACULO], [AMPLITUDE AMPLIFIER - GROVER], 
+
+
+%%COMO AJUDOU?
+\section{Metodologia}
+%%%%% -> Como fizemos o trabalho até o momento?
+%%%%% -> Como continuaremos?
+Para adentrar na abordagem prática para a resolução do problema, foi feito 
+um breve estudo sobre como utilizar a biblioteca \textit{Qiskit}, ferramenta altamente utilizada para 
+desenvolvimento e execução de circuitos quânticos. Em consonância com o 
+conteúdo exposto no livro \cite{silva:18}, foi empreendido um estudo 
+aprofundado sobre circuitos quânticos. Tal investigação permitiu não apenas 
+a compreensão das complexidades teóricas, mas também a aplicação prática dos 
+conceitos abordados. Adicionalmente, foi conduzida uma análise rigorosa 
+sobre a implementação do algoritmo de Grover, conforme delineado no trabalho 
+de \cite{gamberi:22}. Essa investigação possibilitou a atualização do 
+procedimento para a versão mais recente do \textit{Qiskit}, considerando que este empregava uma versão anterior da 
+biblioteca em questão. 
+
+Na sequência do estudo sobre a base do que foi estudado, procedeu-se à análise de quais algoritmos e estruturas de circuitos deveriam ser utilizadas na formulação do circuito proposto. Dentre as abordagens estudas, cabe-se citar as mesmas propostas em \cite{mandl:24}, que conforme explicado anteriormente consiste no uso de meta heurísticas e aplicações matemáticas para a criação de um circuito que analisa as possibilidades do problema MAX 3-SAT, o trabalho feito em \cite{fernandes:19}, \cite{parallelAndDistributed} e \cite{wang:20}, que ao invés do uso de meta-heurísticas, uma abordagem determinística é apresentada, uma vez que ao invés de se basear em um evento probabilístico, as abordagens em questão apresentam uma busca exaustiva pelo resultado a fim de determinar a solução ótima.
+
+Após a definição de todas as abordagens já utilizadas em estudos e no estado da arte, foi necessário a escolha de qual dos métodos seria o mais interessante, simples, de fácil entendimento e prático para a montagem do circuito. Com isto em mente, foi determinado que a solução deveria seguir uma abordagem determinística, a fim de apresentar uma abordagem voltada ao desenvolvimento de \textit{software} apresentada pela mesma em contraste com uma abordagem matemática definida pelo uso de meta-heurísticas.
+
+Em consonância com os trabalhos determinísticos estudados anteriormente, foi necessário entender primeiramente o diagrama do circuito que mais tarde seria portado e executado em um \textit{software}. Dentre os diagramas apresentados nos trabalhos relacionados, foi escolhido a abordagem realizada por \cite{fernandes:19}, que, por mais que os demais outros trabalhos já citados apresentem uma possível solução mais eficiente, o estudo em questão apresenta uma solução mais compreensível e que o foco é apenas na resolução do problema em questão, e não em otimizações que muitas vezes acabam dificultando a compreensão para aqueles que estão iniciando no estudo do mundo quântico. Tal diagrama em questão consiste nas mesmas etapas ilustradas na figura \ref{fig:diagrama_fluxo_trabalhos_relacionados}, onde o circuito é divido em dois principais blocos: um oráculo que representa a expressão em FNC escolhida e um difusor composto por uma diagonal $\mathrm{\textit{D}_x}$ que se encaminha de maximizar a probabilidade de obter a solução ótima, conforme a figura \ref{fig:diagrama_oraculo_difusor}.
+
+
+\begin{figure}[ht]
+\centering
+\scalebox{0.9}{
+\Qcircuit @C=1.0em @R=0.2em @!R {
+            n_{literais} & & & & & & & \mbox{\textit{Difusor}}\\
+	 	\nghost{{x}_{1} :  } & \lstick{{q}_{1} \ket{0}:  } & \multigate{2}{\mathrm{\,\,\textit{H}^{{\bigoplus}n}}}& \qw  & \qw & \multigate{7}{Or\acute{a}culo}  & \qw & \multigate{2}{\mathrm{\,\,\textit{H}^{{\bigoplus}n}}} & \multigate{2}{\mathrm{\textit{D}_x}} & \multigate{2}{\mathrm{\,\,\textit{H}^{{\bigoplus}n}}} & \meter & \qw &\qw &\qw \\
+	 	\nghost{{x}_{2} :  } & \lstick{... \ket{0}:  } & \ghost{\mathrm{\,\,\textit{H}^{{\bigoplus}n}}} & \qw & \qw & \ghost{Or\acute{a}culo} & \qw & \ghost{\mathrm{\,\,\textit{H}^{{\bigoplus}n}}} & \ghost{\mathrm{\textit{D}_x}} & \ghost{\mathrm{\,\,\textit{H}^{{\bigoplus}n}}} & \qw & \meter & \qw & \qw\\
+	 	\nghost{{x}_{3} :  } & \lstick{{q}_{n} \ket{0}:  } & \ghost{\mathrm{\,\,\textit{H}^{{\bigoplus}n}}} & \qw & \qw & \ghost{Or\acute{a}culo} & \qw & \ghost{\mathrm{\,\,\textit{H}^{{\bigoplus}n}}} & \ghost{\mathrm{\textit{D}_x}} & \ghost{\mathrm{\,\,\textit{H}^{{\bigoplus}n}}} & \qw & \qw & \meter & \qw\\
+            k_{cl\acute{a}usulas} & & & & & & & & \\
+	 	\nghost{{q}_{3} :  } & \lstick{{a}_{1} \ket{0}:  } & \qw & \qw & \qw & \ghost{Or\acute{a}culo} & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw\\
+	 	\nghost{{q}_{4} :  } & \lstick{... \ket{0}:  } & \qw & \qw & \qw & \ghost{Or\acute{a}culo} & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw\\
+	 	\nghost{{q}_{5} :  } & \lstick{{a}_{k} \ket{0}:  } & \qw & \qw & \qw & \ghost{Or\acute{a}culo} & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw\\
+	 	\nghost{{q}_{6} :  } & \lstick{{q}_{sa\acute{\imath}da}  \ket{0}:  } & \gate{\mathrm{\textit{H}}} & \gate{\mathrm{\textit{Z}}} & \qw & \ghost{Or\acute{a}culo} & \qw & \qw & \qw & \qw & \qw & \qw & \qw &\qw
+   \gategroup{2}{8}{4}{10}{.8em}{--}
+   \inputgroupv{2}{4}{.8em}{.8em}{} \inputgroupv{6}{8}{.8em}{.8em}{}
+}}
+\caption{Diagrama para um circuito resolvedor 3-SAT por meio de um oráculo e um difusor}
+\label{fig:diagrama_oraculo_difusor}
+\end{figure}
+
+
+Com o diagrama geral do circuito em mãos, os próximos passos foram: 1. Criar um oráculo e 2. Definir e criar um difusor:
+
+Para o oráculo. foi feito um estudo baseado nos trabalhos de \cite{fernandes2:19}, \cite{fernandes:19}, \cite{parallelAndDistributed}, que descorrem sobre maneiras de se construir a mesma através de uma dada expressão em FNC (veja a figura \ref{fig:oraculo_forma_geral}. Desta forma, para a implementação da mesma, foi criado um circuito que representa a expressão FNC \ref{eq:expressao_fcn} 
+\begin{equation}
+(\neg A \lor \neg B \lor \neg C) \land (A \lor \neg B \lor C) \land (A \lor B \lor \neg C)\label{eq:expressao_fcn}
+\end{equation}
+com $qtd_{\textit{qubits}} = n + k + 1$ , onde $n$ representada a quantidade de literais, e $k$ a quantidade de cláusulas, obtendo portanto um total de 7 \textit{qubits}.
+
+A principal ideia por trás dos \textit{qubits} adicionais ($k$) é servir como um \textit{ancilla} para armazenar o resultado da disjunção de cada cláusula, e portanto, precisamos de uma quantidade de \textit{qubits ancilla} equivalente a quantidade de cláusulas escolhidas. A ideia por trás de cada bloco de cláusula $C$ (figura \ref{fig:oraculo_forma_geral}), é representar a negação ou identidade de cada literal da disjunção em questão, e atribuir o resultado da disjunção em seu respectivo \textit{ancilla} por meio de uma porta Toffoli, onde cada literal é um \textit{qubit} de controle (onde seu estado (1/0) é representado casa haja negação ou não, respectivamente), e o \textit{qubit target} é seu respectivo \textit{ancilla}  (figura \ref{fig:expressao_toffoli}). Em sequência da montagem das cláusulas e a fim de representar a conjunção ($\land$), é colocado uma porta Toffoli que tem como controle os \textit{qubits} ancilla (em seus atuais estados), e como \textit{target} o \textit{qubit} extra separado anteriormente para a saída da expressão. 
+Após este ponto, a ideia principal neste momento é reverter o circuito ao seu estado inicial. Tendo isto em mente, é construído outro bloco composto de portas Toffoli, só que agora representando o espelho da expressão montada anteriormente, isto é, a montagem de cada cláusula já feita, mas em ordem inversa. (veja a figura \ref{fig:expressao_toffoli_espelho}).
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}{0.4\textwidth}
+\Qcircuit @C=1.0em @R=0.2em @!R { \\
+	 	\nghost{A :  } & \lstick{A :  } & \ctrl{1} & \ctrlo{1} & \ctrlo{1} &\qw\\
+	 	\nghost{B :  } & \lstick{B :  } & \ctrl{1} & \ctrl{1} & \ctrlo{1} & \qw\\
+	 	\nghost{C :  } & \lstick{C :  } & \ctrl{1} & \ctrlo{2} & \ctrl{3} & \qw\\
+	 	\nghost{{a}_{A} :  } & \lstick{{a}_{A} :  } & \targ & \qw & \qw & \qw\\
+	 	\nghost{{a}_{B} :  } & \lstick{{a}_{B} :  } & \qw & \targ & \qw & \qw\\
+	 	\nghost{{a}_{C} :  } & \lstick{{a}_{C} :  } & \qw & \qw & \targ & \qw\\
+\\ }
+\caption{Expressão \ref{eq:expressao_fcn} escolhida}
+\label{fig:expressao_toffoli}
+\end{subfigure}
+\begin{subfigure}{0.4\textwidth}
+\centering
+\Qcircuit @C=1.0em @R=0.2em @!R { \\
+	 	\nghost{A :  } & \lstick{A :  } & \ctrlo{1} & \ctrlo{1} & \ctrl{1} & \qw\\
+	 	\nghost{B :  } & \lstick{B :  } & \ctrlo{1} & \ctrl{1} & \ctrl{1} &  \qw\\
+	 	\nghost{C :  } & \lstick{C :  } & \ctrl{3} & \ctrlo{2} & \ctrl{1} & \qw\\
+	 	\nghost{{a}_{A} :  } & \lstick{{a}_{A} :  } & \qw & \qw & \targ & \qw\\
+	 	\nghost{{a}_{B} :  } & \lstick{{a}_{B} :  } & \qw & \targ & \qw & \qw\\
+	 	\nghost{{a}_{C} :  } & \lstick{{a}_{C} :  } & \targ & \qw & \qw & \qw\\
+\\ }
+\caption{Respectiva simetria}
+\label{fig:expressao_toffoli_espelho}
+\end{subfigure}
+\caption{Representação da montagem da expressão escolhida por meio de um circuito composto por portas Toffoli e qubits ancilla}
+\end{figure}
+
+Unindo todos os componentes citados anteriormente, é possível obter então o circuito final para o oráculo (veja a figura \ref{fig:oraculo_final})
+
+\begin{figure}[ht]
+\centering
+\scalebox{0.9}{
+\Qcircuit @C=1.0em @R=0.2em @!R { \\
+   &&&&&& \text{Disjun\c{c}\~{a}o} &&&& \text{Conjun\c{c}\~{a}o} &&&& \text{Simetria} &&&&\\
+	 	\nghost{A :  } & \lstick{A :  } & \qw & \qw & \qw & \ctrl{1} & \ctrlo{1} & \ctrlo{1} & \qw & \qw & \qw & \qw & \qw & \ctrlo{1} & \ctrlo{1} & \ctrl{1} & \qw & \qw & \qw \\
+	 	\nghost{B :  } & \lstick{B :  } & \qw & \qw & \qw & \ctrl{1} & \ctrl{1} & \ctrlo{1} & \qw & \qw & \qw & \qw & \qw & \ctrlo{1} & \ctrl{1} & \ctrl{1} & \qw & \qw & \qw \\
+	 	\nghost{C :  } & \lstick{C :  } & \qw & \qw & \qw & \ctrl{1} & \ctrlo{2} & \ctrl{3} & \qw & \qw & \qw & \qw & \qw & \ctrl{3} & \ctrlo{2} & \ctrl{1} & \qw & \qw & \qw \\
+	 	\nghost{{a}_{A} :  } & \lstick{{a}_{A} :  } & \qw & \qw & \qw & \targ & \qw & \qw & \qw & \gate{\mathrm{X}} & \ctrl{1} & \gate{\mathrm{X}} & \qw & \qw & \qw & \targ & \qw & \qw & \qw \\
+	 	\nghost{{a}_{B} :  } & \lstick{{a}_{B} :  } & \qw & \qw & \qw & \qw & \targ & \qw & \qw & \gate{\mathrm{X}} & \ctrl{1} & \gate{\mathrm{X}} & \qw & \qw & \targ & \qw & \qw & \qw & \qw \\
+	 	\nghost{{a}_{C} :  } & \lstick{{a}_{C} :  } & \qw & \qw & \qw & \qw & \qw & \targ & \qw & \gate{\mathrm{X}} & \ctrl{1} & \gate{\mathrm{X}} & \qw & \targ & \qw & \qw & \qw & \qw & \qw \\
+	 	\nghost{{q}_{sa\acute{\imath}da} :  } & \lstick{{q}_{sa\acute{\imath}da} :  } & \gate{\mathrm{H}} & \gate{\mathrm{Z}} & \qw & \qw & \qw & \qw & \qw & \qw & \targ & \qw & \qw & \qw & \qw & \qw & \qw & \qw & \qw
+   \gategroup{3}{6}{8}{8}{.8em}{--}
+   \gategroup{3}{10}{9}{12}{1.8em}{--}
+   \gategroup{3}{14}{8}{16}{.8em}{--}
+}}
+\caption{Oráculo criado que representa a expressão FNC \ref{eq:expressao_fcn}}
+\label{fig:oraculo_final}
+\end{figure}
+
+Após a implementação do oráculo, foi realizado um estudo para a implementação de um difusor a fim de seguir o estado da arte para implementar o algoritmo de Grover.
+Da mesma forma que em \cite{gamberi:22}, foi aplicado o difusor como em seu estado da arte, definido como $D = {H}^{{\bigoplus}n} R {H}^{{\bigoplus}n}$, sendo ${H}^{{\bigoplus}n}$ a aplicação da porta Hadamard para os n \textit{qubits}, e $R$ uma matriz diagonal definida por um vetor sendo o primeiro elemento igual a 1, e os demais assumem o valor de -1:
+
+$R_{i,j} = 0$ se $i \neq j$ \\
+
+$R_{i,i} = 1$, se $i = 0$ \\
+
+$R_{i,i} = -1$, se $i \neq 0$ \\
+
+
+
+\section{Resultados obtidos}
+
+Com base nos estudos citados acima, foi implementado um \textit{\textit{oráculo}} que representa a expressão lógica, em combinação com o operador de Grover, representado pela seguinte forma geral:
+\begin{figure}[h]
+\centering
+\includegraphics[width=1\textwidth]{portilheiro_forma_geral.png}
+\caption{Forma geral do circuito para resolução de problemas de satisfabilidade com operador de grover \textbf{\cite{portilheiro:18}}}
+\label{fig:forma_geral}
+\end{figure}
+
+Onde foi escolhido a seguinte fórmula lógica em FNC para ser utilizada como entrada para o \textit{oráculo}:
+\begin{equation*}
+\begin{aligned}
+    (\neg A \lor \neg B \lor \neg C) \land (A \lor \neg B \lor C) \land (A \lor B \lor \neg C)
+\end{aligned}
+\end{equation*}
+Dito isso, em conjunto com o estudo explicado em \textbf{\cite{portilheiro:18}}, foi criado um circuito quântico que representa tal expressão lógica, onde a quantidade de Qubits é obtida pela seguinte fórmula:
+\begin{equation*}
+\text{Qubits} = \text{QtdTermos} + \text{QtdClausulas} + 1
+\end{equation*}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=1\textwidth]{Oraculo.png}
+\caption{\textit{oráculo} que representa a fórmula da expressão lógica \ref{eq:expressao_fcn}, onde as cláusulas são representadas nos três primeiros qubits, e são passados para o qubit ancilla. Após isso, é feito o espelhamento para retornar os estados }
+\label{fig:oracle}
+\end{figure}
+
+Após a criação do \textit{oráculo}, o passo consecutivo foi a implementação e a adição do circuito de Grover munido pelo trabalho de \textbf{\cite{gamberi:22}}, e aplicando hadamart antes do \textit{oráculo}:
+
+\begin{lstlisting}[language=Python, caption={Adição do operador de Grover ao \textit{oráculo}}, label={lst:grover_e_oraculo}, frame=single]
+def ApplyGrover(oracle):
+  num_qubits = 7
+  qr = QuantumRegister(num_qubits)
+  qc = QuantumCircuit(qr, name)
+  qubits = [0,1,2,3,4,5,6]
+  qc.compose(oracle, qubits, inplace=True)
+
+  # Aplica Hadamart Para cada qubit queremos medir
+  qc.h(0)
+  qc.h(1)
+  qc.h(2)
+
+  #Aplica a diagonal para os 3 qubits que desejamos medir
+  qc.compose(
+      GetDiagonal(oracle),qubits=[0,1,2], inplace=True
+  )
+  # Aplica Hadamart Para cada qubit que queremos medir
+  qc.h(0)
+  qc.h(1)
+  qc.h(2)
+
+  return qc
+\end{lstlisting}
+
+Obtendo então o circuito final:
+\begin{figure}[h]
+\centering
+\includegraphics[width=1\textwidth]{circuito_final.png}
+\caption{Circuito final após aplicar Grover e Hadamard}
+\label{fig:circuito_final}
+\end{figure}
+
+Executando o circuito obtido, foi possível obter a probabilidade dos valores de entrada de C,B,A, respectivamente que resultam nas entradas que resultam na não satisfabilidade do circuito, e, portanto, as demais probabilidades de menor valor, resultam nos valores que representam a satisfabilidade do circuito:
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=1\textwidth]{histograma_circuito_obtido.png}
+\caption{Histograma obtido para a resolução do problema 3-SAT em questão, onde 000, 001, 011, 101, 110 representam as atribuições de C,B,A, respectivamente para a obtenção da satisfabilidade}
+\label{fig:histograma_circuito}
+\end{figure}
+
+Em conjunto com isso, foi utilizado uma implementação automática da biblioteca Qiskit como gabarito para o histograma obtido:
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=.\textwidth]{gabarito_qiskit.png}
+\caption{Histograma obtido utilizando abstrações da biblioteca Qiskit para a resolução do problema 3-SAT em questão, onde 000, 001, 011, 101, 110 representam as atribuições de C,B,A, respectivamente para a obtenção da satisfabilidade}
+\label{fig:gabarito_histograma}
+\end{figure}
+
+\begin{lstlisting}[language=Python, caption={Criação do circuito utilizando as abstrações da biblioteca Qiskit}, label={lst:oraculo}, frame=single]
+qiskit_oracle = PhaseOracle(EXPRESSION)
+
+sampler = Sampler()
+
+qiskit_problem = AmplificationProblem(qiskit_oracle)
+qiskit_grover = Grover(sampler = sampler, iterations=1)
+qiskit_result = qiskit_grover.amplify(qiskit_problem)
+\end{lstlisting}
+Os resultados obtidos na Figura~\ref{fig:gabarito_histograma}. encaixam perfeitamente nos valores de atribuição para C, B, A a fim de obter a satisfabilidade da equação, como comprovado na tabela verdade conforme na Figura~\ref{fig:tabela_verdade}.
+\begin{figure}[ht]
+\centering
+\includegraphics[width=.4\textwidth]{tabela_verdade.png}
+\caption{Tabela verdade para a expressão escolhida}
+\label{fig:tabela_verdade}
+\end{figure}
+O código fonte para visualização da criação de tal circuito e resultados está disponível para visualização pública, e pode ser obtido no final deste artigo.
+
+\section{Conclusões e trabalhos futuros}
+
+Em conclusão, os resultados obtidos até agora reforçam o papel promissor da computação quântica na resolução de problemas clássicos da computação. A característica não determinística da computação quântica nos permite obter resultados de várias maneiras. Especificamente, o algoritmo de Grover provou ser uma ferramenta versátil para lidar com o problema 3-SAT. Este trabalho apresentou uma abordagem prática para a implementação do algoritmo de Grover, demonstrando sua aplicabilidade e eficácia\footnote{Código fonte com a implementação do circuito, disponível para consumo público:
+\url{https://github.com/gabrielms201/Quantum-Implementation-For-SAT-Problem-Solving}{https://github.com/gabrielms201/Quantum-Implementation-For-SAT-Problem-Solving}}.
+
+\bibliographystyle{sbc}
+\bibliography{sbc-template}
+
+
+
+\end{document}
