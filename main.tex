@@ -6,8 +6,10 @@
 \usepackage[T1]{fontenc} % avoid using two chars when special/accented letters
 \usepackage[brazil]{babel}
 \usepackage{xcolor}
+\usepackage{listings}
 \usepackage{colortbl}
 \usepackage{multirow}
+\usepackage{listings}
 \usepackage{listingsutf8}
 \usepackage{booktabs}
 \usepackage{caption}
@@ -17,7 +19,28 @@
 \usepackage{caption}
 \usepackage{subcaption}
 %\usepackage{float} <- Não vamos usar este pacote!
-     
+
+\lstset{
+  language=Python,                    
+  basicstyle=\ttfamily\scriptsize,          
+  numbers=left,                       
+  numberstyle=\tiny\color{gray},       
+  stepnumber=1,                       
+  numbersep=5pt,                      
+  backgroundcolor=\color{white},      
+  showspaces=false,                   
+  showstringspaces=false,             
+  showtabs=false,                     
+  frame=single,                       
+  rulecolor=\color{black},            
+  tabsize=2,                          
+  captionpos=b,                       
+  breaklines=true,                    
+  keywordstyle=\color{blue},           
+  commentstyle=\bfseries\color{black},
+  stringstyle=\color{red},             
+}
+
 \sloppy
 
 
@@ -259,47 +282,78 @@ Unindo todos os componentes citados anteriormente, é possível obter então o c
 \end{figure}
 
 Após a implementação do oráculo, foi realizado um estudo para a implementação de um difusor a fim de seguir o estado da arte para implementar o algoritmo de Grover.
-Da mesma forma que em \cite{gamberi:22}, foi aplicado o difusor como em seu estado da arte, definido como $D = {H}^{{\bigoplus}n} R {H}^{{\bigoplus}n}$, sendo ${H}^{{\bigoplus}n}$ a aplicação da porta Hadamard para os n \textit{qubits}, e $R$ uma matriz diagonal definida por um vetor sendo o primeiro elemento igual a 1, e os demais assumem o valor de -1:
-
+Da mesma forma que em \cite{gamberi:22}, foi aplicado o difusor como em seu estado da arte, definido como \textit{D = WRW} sendo \textit{W} a aplicação da porta Hadamard (no caso para este trabalho, seria a aplicação de para os n \textit{qubits}, ou seja, $W = {H}^{{\bigoplus}n}$, e $R$ uma matriz diagonal definida por um vetor sendo o primeiro elemento igual a 1, e os demais assumem o valor de -1:\\
 $R_{i,j} = 0$ se $i \neq j$ \\
-
 $R_{i,i} = 1$, se $i = 0$ \\
-
 $R_{i,i} = -1$, se $i \neq 0$ \\
 
+Tendo em mente o diagrama do circuito proposto em \ref{fig:diagrama_oraculo_difusor}, o próximo para a resolução do problema foi a criação do circuito. Para essa etapa, foi escolhido a linguagem de programação \textit{python} em conjunto com a biblioteca \textit{qiskit}.
+O primeiro passo então foi a criação do oráculo, que em suma pode ser aplicada da mesma maneira como no bloco \ref{lst:create_oracle}
+\begin{lstlisting}[language=Python, caption={Criação do oráculo}, frame=single, label={lst:create_oracle}]
+def CreateOracle():
+  qubit_qtd = clauses_qtd = 3
+  register_qtd = qubit_qtd + clauses_qtd + 1
 
+  qreg_q = QuantumRegister(register_qtd, 'q')
+  creg_c = ClassicalRegister(qubit_qtd, 'c')
+  qc = QuantumCircuit(qreg_q, creg_c)
 
-\section{Resultados obtidos}
+  # Amplifica e inverte a fase do qubit de resultado
+  qc.h(6)
+  qc.z(6)
+  qc.barrier()
+  
+  # Disjuncao (~A | ~B | ~C)
+  qc.append(CXGate().control(num_ctrl_qubits=2, ctrl_state='11'), [0,1,2,3])
+  # Disjuncao (A | ~B | C)
+  qc.append(CXGate().control(num_ctrl_qubits=2, ctrl_state='00'), [0,2,1,4])
+  # Disjuncao (A | B | ~C)
+  qc.append(CXGate().control(num_ctrl_qubits=2, ctrl_state='00'), [0,1,2,5])
 
-Com base nos estudos citados acima, foi implementado um \textit{\textit{oráculo}} que representa a expressão lógica, em combinação com o operador de Grover, representado pela seguinte forma geral:
-\begin{figure}[h]
-\centering
-\includegraphics[width=1\textwidth]{portilheiro_forma_geral.png}
-\caption{Forma geral do circuito para resolução de problemas de satisfabilidade com operador de grover \textbf{\cite{portilheiro:18}}}
-\label{fig:forma_geral}
-\end{figure}
+  # Conjuncao
+  qc.barrier()
+  qc.x(qreg_q[3])
+  qc.x(qreg_q[4])
+  qc.x(qreg_q[5])
+  qc.append(CXGate().control(num_ctrl_qubits=2, ctrl_state='11'), [3,4,5,6])
+  qc.x(qreg_q[3])
+  qc.x(qreg_q[4])
+  qc.x(qreg_q[5])
+  qc.barrier()
 
-Onde foi escolhido a seguinte fórmula lógica em FNC para ser utilizada como entrada para o \textit{oráculo}:
-\begin{equation*}
-\begin{aligned}
-    (\neg A \lor \neg B \lor \neg C) \land (A \lor \neg B \lor C) \land (A \lor B \lor \neg C)
-\end{aligned}
-\end{equation*}
-Dito isso, em conjunto com o estudo explicado em \textbf{\cite{portilheiro:18}}, foi criado um circuito quântico que representa tal expressão lógica, onde a quantidade de Qubits é obtida pela seguinte fórmula:
-\begin{equation*}
-\text{Qubits} = \text{QtdTermos} + \text{QtdClausulas} + 1
-\end{equation*}
+  # Simetria (A | B | ~C)
+  qc.append(CXGate().control(num_ctrl_qubits=2, ctrl_state='00'), [0,1,2,5])
+  # Simetria  (A | ~B | C)
+  qc.append(CXGate().control(num_ctrl_qubits=2, ctrl_state='00'), [0,2,1,4])
+  # Simetria  (~A | ~B | ~C)
+  qc.append(CXGate().control(num_ctrl_qubits=2, ctrl_state='11'), [0,1,2,3])
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=1\textwidth]{Oraculo.png}
-\caption{\textit{oráculo} que representa a fórmula da expressão lógica \ref{eq:expressao_fcn}, onde as cláusulas são representadas nos três primeiros qubits, e são passados para o qubit ancilla. Após isso, é feito o espelhamento para retornar os estados }
-\label{fig:oracle}
-\end{figure}
+  qc.barrier()
 
-Após a criação do \textit{oráculo}, o passo consecutivo foi a implementação e a adição do circuito de Grover munido pelo trabalho de \textbf{\cite{gamberi:22}}, e aplicando hadamart antes do \textit{oráculo}:
+  return qc
+\end{lstlisting}
+Com a criação do oráculo, os passos restantes se definem em: \\
+1. Criação da diagonal (bloco \ref{lst:create_diagonal})\\
+2. Criação e anexo do difusor ao oráculo (bloco \ref{lst:create_difusor})\\
 
-\begin{lstlisting}[language=Python, caption={Adição do operador de Grover ao \textit{oráculo}}, label={lst:grover_e_oraculo}, frame=single]
+\begin{lstlisting}[language=Python, caption={Criação da diagonal}, frame=single, label={lst:create_diagonal}]
+def CreateDiagonalSequence(number, qubits):
+    diagonalSize = pow(2,qubits)
+    if (diagonalSize < number - 1): return -1
+    aux = np.ones(diagonalSize, dtype=int)
+    aux[number] = -1
+    return aux
+
+def GetDiagonal():
+  # Quantidade de literais (A,B,C)
+  qubit_qtd = 3
+  groverDiagonal = list(CreateDiagonalSequence(0, qubit_qtd))
+  
+  # Instancia da diagonal disponibilizada pelo qisikit
+  return Diagonal(groverDiagonal) 
+\end{lstlisting}
+
+\begin{lstlisting}[language=Python, caption={Adição do operador de Grover ao \textit{oráculo}}, frame=single, label={lst:create_difusor}]
 def ApplyGrover(oracle):
   num_qubits = 7
   qr = QuantumRegister(num_qubits)
@@ -324,53 +378,77 @@ def ApplyGrover(oracle):
   return qc
 \end{lstlisting}
 
-Obtendo então o circuito final:
-\begin{figure}[h]
-\centering
-\includegraphics[width=1\textwidth]{circuito_final.png}
-\caption{Circuito final após aplicar Grover e Hadamard}
-\label{fig:circuito_final}
-\end{figure}
-
-Executando o circuito obtido, foi possível obter a probabilidade dos valores de entrada de C,B,A, respectivamente que resultam nas entradas que resultam na não satisfabilidade do circuito, e, portanto, as demais probabilidades de menor valor, resultam nos valores que representam a satisfabilidade do circuito:
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=1\textwidth]{histograma_circuito_obtido.png}
-\caption{Histograma obtido para a resolução do problema 3-SAT em questão, onde 000, 001, 011, 101, 110 representam as atribuições de C,B,A, respectivamente para a obtenção da satisfabilidade}
-\label{fig:histograma_circuito}
-\end{figure}
-
-Em conjunto com isso, foi utilizado uma implementação automática da biblioteca Qiskit como gabarito para o histograma obtido:
+Com a aplicação de Hadamard nos 3 primeiros \textit{qubits} (literais), e a incluindo a medição dos mesmos, o circuito final então é obtido (veja a figura \ref{fig:circuito_final})
 
 \begin{figure}[ht]
-\centering
-\includegraphics[width=.\textwidth]{gabarito_qiskit.png}
-\caption{Histograma obtido utilizando abstrações da biblioteca Qiskit para a resolução do problema 3-SAT em questão, onde 000, 001, 011, 101, 110 representam as atribuições de C,B,A, respectivamente para a obtenção da satisfabilidade}
-\label{fig:gabarito_histograma}
+    \centering
+    \includegraphics[width=1\linewidth]{circuito_final.png}
+    \caption{Circuito final}
+    \label{fig:circuito_final}
 \end{figure}
 
-\begin{lstlisting}[language=Python, caption={Criação do circuito utilizando as abstrações da biblioteca Qiskit}, label={lst:oraculo}, frame=single]
-qiskit_oracle = PhaseOracle(EXPRESSION)
+\section{Resultados obtidos}
 
-sampler = Sampler()
+Conforme explicitado anteriormente, foi criado o circuito quântico \ref{fig:circuito_final} que visa solucionar a expressão FNC \ref{eq:expressao_fcn}.
 
-qiskit_problem = AmplificationProblem(qiskit_oracle)
-qiskit_grover = Grover(sampler = sampler, iterations=1)
-qiskit_result = qiskit_grover.amplify(qiskit_problem)
-\end{lstlisting}
-Os resultados obtidos na Figura~\ref{fig:gabarito_histograma}. encaixam perfeitamente nos valores de atribuição para C, B, A a fim de obter a satisfabilidade da equação, como comprovado na tabela verdade conforme na Figura~\ref{fig:tabela_verdade}.
-\begin{figure}[ht]
+Executando o circuito obtido, é possível gerar o histograma presente na figura \ref{fig:histograma_circuito}, que representa as atribuições (1/0) dos valores de C, B e A que resultam em não satisfação para a expressão \ref{eq:expressao_fcn}.
+No caso em questão, os valores 000, 001, 011, 101, 110 representam as atribuições de C,B,A, respectivamente para a obtenção da satisfabilidade.
+
+Sendo assim, as atribuições com maior probabilidade indicam os valores de C, B e A que levam a um resultado booleano de "falso", enquanto as com menor probabilidade correspondem às atribuições que resultam no valor booleano de "verdadeiro" para a expressão.
+
+\begin{figure}
 \centering
-\includegraphics[width=.4\textwidth]{tabela_verdade.png}
-\caption{Tabela verdade para a expressão escolhida}
-\label{fig:tabela_verdade}
+    \begin{subfigure}{0.4\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{histograma_circuito_obtido.png}
+        \caption{Resultados obtidos}
+        \label{fig:histograma_circuito}        
+    \end{subfigure}
+    \begin{subfigure}{0.419\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{gabarito_qiskit.png}
+        \caption{Gabarito}
+        \label{fig:gabarito_qiskit}        
+    \end{subfigure}
+    \caption{Resultados de não satisfação da expressão FNC \ref{eq:expressao_fcn}}
 \end{figure}
-O código fonte para visualização da criação de tal circuito e resultados está disponível para visualização pública, e pode ser obtido no final deste artigo.
+
+A fim de visualizar comparações com o estado da arte para a resolução do problema, foi utilizado uma implementação de abstrações de circuitos pré programados da biblioteca Qiskit como gabarito, resultando no histograma representado na figura \ref{fig:gabarito_qiskit}.
+
+Os resultados expressados nas figuras  \ref{fig:histograma_circuito} e \ref{fig:gabarito_qiskit} se encaixam perfeitamente nos valores de atribuição para C, B, A a fim de obter a satisfabilidade da equação, como comprovado na tabela verdade.
+\begin{table}[h!]
+\centering
+\[
+\begin{array}{|c|c|c|c|}
+\hline
+C & B & A & (\neg A \lor \neg B \lor \neg C) \land (A \lor \neg B \lor C) \land (A \lor B \lor \neg C) \\
+\hline
+\text{F} & \text{F} & \text{F} & \text{T} \\
+\hline
+\text{T} & \text{F} & \text{F} & \text{F} \\
+\hline
+\text{F} & \text{T} & \text{F} & \text{F} \\
+\hline
+\text{T} & \text{T} & \text{F} & \text{T} \\
+\hline
+\text{F} & \text{F} & \text{T} & \text{T} \\
+\hline
+\text{T} & \text{F} & \text{T} & \text{T} \\
+\hline
+\text{F} & \text{T} & \text{T} & \text{T} \\
+\hline
+\text{T} & \text{T} & \text{T} & \text{F} \\
+\hline
+\end{array}
+\]
+\caption{Tabela verdade da expressão FNC \ref{eq:expressao_fcn}}
+\label{tab:tabela_verdade}
+\end{table}
 
 \section{Conclusões e trabalhos futuros}
 
-Em conclusão, os resultados obtidos até agora reforçam o papel promissor da computação quântica na resolução de problemas clássicos da computação. A característica não determinística da computação quântica nos permite obter resultados de várias maneiras. Especificamente, o algoritmo de Grover provou ser uma ferramenta versátil para lidar com o problema 3-SAT. Este trabalho apresentou uma abordagem prática para a implementação do algoritmo de Grover, demonstrando sua aplicabilidade e eficácia\footnote{Código fonte com a implementação do circuito, disponível para consumo público:
+Em conclusão, os resultados obtidos até agora reforçam o papel promissor da computação quântica na resolução de problemas clássicos da computação. A característica não determinística da computação quântica nos permite obter resultados de várias maneiras. Especificamente, o algoritmo de Grover provou ser uma ferramenta versátil para lidar com o problema 3-SAT. Este trabalho apresentou uma abordagem prática para a implementação do algoritmo de Grover, demonstrando sua aplicabilidade e eficácia
+\footnote{Código fonte com a implementação do circuito, disponível para consumo público:
 \url{https://github.com/gabrielms201/Quantum-Implementation-For-SAT-Problem-Solving}{https://github.com/gabrielms201/Quantum-Implementation-For-SAT-Problem-Solving}}.
 
 \bibliographystyle{sbc}
