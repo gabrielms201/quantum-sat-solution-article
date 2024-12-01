@@ -198,9 +198,9 @@ Da mesma forma que brevemente citado no trabalho explicado anteriormente, em \ci
 %%RELACIONADO 6
 Por fim, o artigo \cite{piro:20} avalia a aplicação de computação quântica para a solução de instâncias arbitrárias do problema Exactly-1 K-SAT e mostra as melhorias que são proporcionadas por um solucionador quântico. O problema Exactly-1 K-SAT consiste em encontrar uma atribuição satisfatória na qual exatamente um literal é verdadeiro em cada cláusula. Este trabalho realiza uma generalização de outro solucionador quântico que resolve o problema Exactly-1 3-SAT utilizando o algoritmo de Grover, essa generalização é feita em três etapas:
 \begin{enumerate}
-    \item Inicialização onde é aplicado portas Hadamard para cada variável e para a saída;
-    \item Etapa de codificação do problema onde cada cláusula é codificada no circuito usando portas que permitem inverter o qubit correspondente à cláusula se ela tiver exatamente um literal verdadeiro;
-    \item Inversão sobre a média onde foi modificado os coeficientes correspondentes à solução correta aplicando a operação unitária \(W\):
+    \item Inicialização, onde é aplicado portas Hadamard para cada variável e para a saída;
+    \item Codificação do problema, onde cada cláusula é codificada no circuito usando portas que permitem inverter o qubit correspondente à cláusula se ela tiver exatamente um literal verdadeiro;
+    \item Inversão sobre a média, onde foi modificado os coeficientes correspondentes à solução correta aplicando a operação unitária \(W\):
 \end{enumerate} 
 \[
 W = \big( - \overset{n}{\bigotimes} \mathcal{H} \big) D \big( \overset{n}{\bigotimes} \mathcal{H} \big)
